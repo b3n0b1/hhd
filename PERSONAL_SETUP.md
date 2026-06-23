@@ -25,6 +25,8 @@ Paths/names below assume user `benobi` and repo at
 
 ```bash
 git clone git@github.com:b3n0b1/hhd.git ~/Git/hhd
+# If you aren't me clone the https public endpoint
+git clone https://github.com/b3n0b1/hhd.git ~/Git/hhd
 cd ~/Git/hhd
 git checkout konkr-button-profiles   # or: personal-runtime-docs (includes this doc)
 ```
