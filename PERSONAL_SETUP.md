@@ -169,5 +169,63 @@ sudo systemctl enable --now hhd.service     # or just let Gaming Mode start it
 
 ---
 
+## CachyOS variant (testing)
+
+Everything above targets Bazzite (immutable + SELinux). Also tested on plain
+CachyOS (Arch-based, not immutable, no SELinux). Deltas from the Bazzite
+steps:
+
+- **Skip step 3 entirely.** No `chcon`/`getenforce` on CachyOS — there's no
+  SELinux, so nothing needs relabeling and systemd won't hit `203/EXEC` for
+  that reason.
+- **`hhd-local.service` needs no `SELinuxContext=` line**, and `ExecStart`
+  should point at `/home/<user>/...`, not `/var/home/<user>/...` (that path
+  only exists on Bazzite, where `/home` is a symlink to `/var/home`).
+- **Fish is the default shell** — bash heredocs (`sudo tee file <<'EOF' ...`)
+  don't parse in fish (`Expected a string, but found a redirection`). Write
+  the file with an editor (or `Write`/`cp` from a scratch copy) instead of a
+  heredoc one-liner.
+- **`ModuleNotFoundError: No module named 'pkg_resources'`** when running
+  `venv/bin/hhd`: CachyOS's system `setuptools` (85+) dropped `pkg_resources`
+  entirely, and `--system-site-packages` pulls that in. HHD's `__main__.py`
+  still imports it directly. Fix by forcing an older setuptools into the venv
+  (shadows the system one on `sys.path`):
+  ```bash
+  venv/bin/pip install --ignore-installed "setuptools<81"
+  ```
+  **Redo this every time the venv is recreated** (`rm -rf venv && python -m
+  venv ...`) — a fresh venv re-inherits the system setuptools first.
+- **The venv is pinned to the system Python minor version** it was created
+  with (currently 3.14) via the `--system-site-packages` symlink. A CachyOS
+  update that bumps Python (e.g. 3.14 → 3.15) breaks it silently until
+  recreated — `rm -rf venv`, redo the venv + editable install + the
+  `setuptools<81` pin above, then `sudo systemctl restart hhd-local.service`.
+
+### Disabling HHD's TDP handling (e.g. to use DeckyLoader + SimpleDeckyTDP)
+
+HHD's TDP/power-limit control lives entirely in the separate `adjustor`
+plugin provider (see `src/adjustor/` in CLAUDE.md). To turn it off without
+touching anything else (controller, RGB, Konkr button map keep working):
+
+```bash
+# /etc/hhd/plugins.yml
+blacklist:
+- adjustor
+```
+then `sudo systemctl restart hhd-local.service`.
+
+> Note: as of upstream `__main__.py`, the blacklist check logged but never
+> actually skipped the provider (missing `continue`) — fixed on this branch.
+> If you're on an unpatched checkout, blacklisting `adjustor` alone won't
+> remove it from the overlay.
+
+For TDP via Decky instead: install Decky Loader
+(`curl -L https://github.com/SteamDeckHomebrew/decky-loader/raw/main/dist/install_release.sh | sh`,
+then fully restart Steam), then install the **SimpleDeckyTDP** plugin from
+the Decky plugin store (uses `ryzenadj`, works on the Konkr Fit's AMD APU).
+Keep `adjustor` blacklisted so the two don't fight over the same TDP knobs.
+
+---
+
 See `src/hhd/device/ayaneo/KONKR.md` for the controller hardware details
 (button layout, evdev codes, the F23 chord, the per-button map).
