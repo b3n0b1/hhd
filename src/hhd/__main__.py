@@ -238,6 +238,7 @@ def main():
             detector_names.append(name)
             if name in blacklist:
                 logger.info(f"Skipping blacklisted provider '{name}'.")
+                continue
             if whitelist and name not in whitelist:
                 logger.info(f"Skipping provider '{name}' due to whitelist.")
                 continue
