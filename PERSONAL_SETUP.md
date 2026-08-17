@@ -186,20 +186,17 @@ steps:
   the file with an editor (or `Write`/`cp` from a scratch copy) instead of a
   heredoc one-liner.
 - **`ModuleNotFoundError: No module named 'pkg_resources'`** when running
-  `venv/bin/hhd`: CachyOS's system `setuptools` (85+) dropped `pkg_resources`
-  entirely, and `--system-site-packages` pulls that in. HHD's `__main__.py`
-  still imports it directly. Fix by forcing an older setuptools into the venv
-  (shadows the system one on `sys.path`):
-  ```bash
-  venv/bin/pip install --ignore-installed "setuptools<81"
-  ```
-  **Redo this every time the venv is recreated** (`rm -rf venv && python -m
-  venv ...`) — a fresh venv re-inherits the system setuptools first.
+  `venv/bin/hhd`: this hit us on CachyOS because system `setuptools` (81+)
+  dropped `pkg_resources` and `--system-site-packages` pulls that in. Fixed
+  upstream (`58f430b7`, in v4.1.11+): plugin discovery now uses stdlib
+  `importlib.metadata` instead, no `setuptools` dependency at runtime. As
+  long as this branch is rebased on a current upstream, no workaround is
+  needed — just `pip install -e .` in a normal venv.
 - **The venv is pinned to the system Python minor version** it was created
   with (currently 3.14) via the `--system-site-packages` symlink. A CachyOS
   update that bumps Python (e.g. 3.14 → 3.15) breaks it silently until
-  recreated — `rm -rf venv`, redo the venv + editable install + the
-  `setuptools<81` pin above, then `sudo systemctl restart hhd-local.service`.
+  recreated — `rm -rf venv`, redo the venv + editable install, then
+  `sudo systemctl restart hhd-local.service`.
 
 ### Disabling HHD's TDP handling (e.g. to use DeckyLoader + SimpleDeckyTDP)
 
